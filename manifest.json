@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "lory.theme-gallery",
+  "name": "Theme Gallery",
+  "version": "0.1.0",
+  "author": "lory",
+  "description": "Browse community Omarchy themes from omarchythemes.com and install one with a click",
+  "kinds": [
+    "panel"
+  ],
+  "entryPoints": {
+    "panel": "Panel.qml"
+  }
+}
