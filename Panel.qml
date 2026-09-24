@@ -30,6 +30,10 @@ Item {
   property int refreshCurrent: 0
   property int refreshTotal: 0
 
+  readonly property int gridColumns: 4
+  readonly property int gridCellWidth: Style.space(200)
+  readonly property int gridCellHeight: Style.space(210)
+
   readonly property var filteredThemes: {
     var q = filterText.trim().toLowerCase()
     if (q === "") return themes
@@ -187,7 +191,7 @@ Item {
       Rectangle {
         id: card
         anchors.centerIn: parent
-        width: Math.min(parent.width - Style.space(80), Style.space(980))
+        width: Math.min(parent.width - Style.space(80), root.gridColumns * root.gridCellWidth + Style.spacing.panelPadding * 2)
         height: Math.min(parent.height - Style.space(80), Style.space(680))
         radius: Style.cornerRadius
         color: Color.background
@@ -204,26 +208,6 @@ Item {
           RowLayout {
             Layout.fillWidth: true
             spacing: Style.spacing.controlGap
-
-            Text {
-              textFormat: Text.PlainText
-              text: "Theme Gallery"
-              color: Color.foreground
-              font.family: Style.font.family
-              font.pixelSize: Style.font.heading
-              font.bold: true
-            }
-
-            Text {
-              textFormat: Text.PlainText
-              text: root.themes.length > 0 ? root.themes.length + " themes" : ""
-              color: Color.foreground
-              opacity: 0.6
-              font.family: Style.font.family
-              font.pixelSize: Style.font.bodySmall
-            }
-
-            Item { Layout.fillWidth: true }
 
             TextField {
               id: searchField
@@ -245,6 +229,26 @@ Item {
               text: "Close"
               bordered: true
               onClicked: root.dismiss()
+            }
+
+            Item { Layout.fillWidth: true }
+
+            Text {
+              textFormat: Text.PlainText
+              text: "Theme Gallery"
+              color: Color.foreground
+              font.family: Style.font.family
+              font.pixelSize: Style.font.heading
+              font.bold: true
+            }
+
+            Text {
+              textFormat: Text.PlainText
+              text: root.themes.length > 0 ? root.themes.length + " themes" : ""
+              color: Color.foreground
+              opacity: 0.6
+              font.family: Style.font.family
+              font.pixelSize: Style.font.bodySmall
             }
           }
 
@@ -353,8 +357,8 @@ Item {
               anchors.fill: parent
               visible: root.filteredThemes.length > 0
               clip: true
-              cellWidth: Style.space(200)
-              cellHeight: Style.space(210)
+              cellWidth: root.gridCellWidth
+              cellHeight: root.gridCellHeight
               model: root.filteredThemes
 
               delegate: Item {
