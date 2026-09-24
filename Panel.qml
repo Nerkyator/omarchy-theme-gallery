@@ -27,6 +27,8 @@ Item {
   property bool statusError: false
   property bool refreshing: false
   property string refreshProgress: ""
+  property int refreshCurrent: 0
+  property int refreshTotal: 0
 
   readonly property var filteredThemes: {
     var q = filterText.trim().toLowerCase()
@@ -87,8 +89,10 @@ Item {
     if (root.refreshing) return
     root.refreshing = true
     root.refreshProgress = ""
+    root.refreshCurrent = 0
+    root.refreshTotal = 0
     root.statusError = false
-    root.statusText = "Refreshing catalog from omarchythemes.com — this can take a few minutes…"
+    root.statusText = ""
     refreshProc.command = [root.pluginDir + "/scripts/refresh.sh"]
     refreshProc.running = true
   }
@@ -135,13 +139,19 @@ Item {
     stderr: SplitParser {
       onRead: function(line) {
         var m = line.match(/^\[(\d+)\/(\d+)\]/)
-        if (m) root.refreshProgress = m[1] + "/" + m[2]
+        if (m) {
+          root.refreshCurrent = parseInt(m[1], 10)
+          root.refreshTotal = parseInt(m[2], 10)
+          root.refreshProgress = m[1] + "/" + m[2]
+        }
         refreshProc.errorText = line
       }
     }
     onExited: function(exitCode) {
       root.refreshing = false
       root.refreshProgress = ""
+      root.refreshCurrent = 0
+      root.refreshTotal = 0
       if (exitCode === 0) {
         root.statusError = false
         root.statusText = "Catalog refreshed"
@@ -256,7 +266,7 @@ Item {
             ColumnLayout {
               anchors.centerIn: parent
               width: Math.min(parent.width - Style.space(80), Style.space(360))
-              visible: root.filteredThemes.length === 0
+              visible: root.filteredThemes.length === 0 && !root.refreshing
               spacing: Style.spacing.md
 
               Text {
@@ -284,6 +294,57 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
                 Layout.fillWidth: true
+              }
+            }
+
+            ColumnLayout {
+              anchors.centerIn: parent
+              width: Math.min(parent.width - Style.space(80), Style.space(360))
+              visible: root.refreshing && root.themes.length === 0
+              spacing: Style.spacing.md
+
+              Text {
+                textFormat: Text.PlainText
+                text: "Fetching theme catalog…"
+                color: Color.foreground
+                opacity: 0.8
+                font.family: Style.font.family
+                font.pixelSize: Style.font.body
+                horizontalAlignment: Text.AlignHCenter
+                Layout.fillWidth: true
+              }
+
+              Text {
+                textFormat: Text.PlainText
+                text: root.refreshTotal > 0
+                  ? root.refreshCurrent + " / " + root.refreshTotal
+                  : "Starting…"
+                color: Color.foreground
+                opacity: 0.55
+                font.family: Style.font.family
+                font.pixelSize: Style.font.bodySmall
+                horizontalAlignment: Text.AlignHCenter
+                Layout.fillWidth: true
+              }
+
+              Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Style.space(6)
+                radius: height / 2
+                color: Style.normalFill
+                border.color: Style.normalBorderColor
+                border.width: Style.normalBorderWidth
+
+                Rectangle {
+                  height: parent.height
+                  radius: parent.radius
+                  color: Color.accent
+                  width: root.refreshTotal > 0
+                    ? Math.max(height, parent.width * Math.min(1, root.refreshCurrent / root.refreshTotal))
+                    : 0
+
+                  Behavior on width { NumberAnimation { duration: 150 } }
+                }
               }
             }
 
