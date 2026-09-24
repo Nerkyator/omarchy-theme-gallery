@@ -238,17 +238,8 @@ Item {
               text: "Theme Gallery"
               color: Color.foreground
               font.family: Style.font.family
-              font.pixelSize: Style.font.heading
+              font.pixelSize: Style.font.title
               font.bold: true
-            }
-
-            Text {
-              textFormat: Text.PlainText
-              text: root.themes.length > 0 ? root.themes.length + " themes" : ""
-              color: Color.foreground
-              opacity: 0.6
-              font.family: Style.font.family
-              font.pixelSize: Style.font.bodySmall
             }
           }
 
@@ -433,6 +424,16 @@ Item {
             }
           }
         }
+
+          Text {
+            textFormat: Text.PlainText
+            Layout.alignment: Qt.AlignRight
+            text: root.themes.length > 0 ? root.themes.length + " themes" : ""
+            color: Color.foreground
+            opacity: 0.5
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+          }
       }
     }
   }
