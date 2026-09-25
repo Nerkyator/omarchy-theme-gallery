@@ -32,6 +32,12 @@ Item {
   property var installedSlugs: []
   property var detailTheme: null
   property string currentThemeSlug: ""
+  property string sortMode: "name-asc"
+
+  readonly property var sortOptions: [
+    { value: "name-asc", label: "Name (A-Z)" },
+    { value: "name-desc", label: "Name (Z-A)" }
+  ]
 
   readonly property int gridColumns: 4
   readonly property int gridCellWidth: Style.space(200)
@@ -43,11 +49,15 @@ Item {
 
   readonly property var filteredThemes: {
     var q = filterText.trim().toLowerCase()
-    if (q === "") return themes
-    return themes.filter(function(t) {
+    var list = q === "" ? themes.slice() : themes.filter(function(t) {
       return t.name.toLowerCase().indexOf(q) !== -1
         || (t.author || "").toLowerCase().indexOf(q) !== -1
     })
+    var dir = root.sortMode === "name-desc" ? -1 : 1
+    list.sort(function(a, b) {
+      return dir * a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+    })
+    return list
   }
 
   function open(payloadJson) {
@@ -273,6 +283,14 @@ Item {
               placeholderText: "Filter by name or author…"
               text: root.filterText
               onTextChanged: root.filterText = text
+            }
+
+            Dropdown {
+              Layout.preferredWidth: Style.space(160)
+              showLabel: false
+              options: root.sortOptions
+              value: root.sortMode
+              onChanged: function(v) { root.sortMode = v }
             }
 
             Button {
