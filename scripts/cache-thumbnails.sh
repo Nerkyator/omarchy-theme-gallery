@@ -10,6 +10,9 @@ PLUGIN_DIR="$(dirname "$SCRIPT_DIR")"
 CATALOG="$PLUGIN_DIR/cache/catalog.json"
 THUMBS_DIR="$PLUGIN_DIR/cache/thumbs"
 UA="omarchy-theme-gallery/0.1 (local Omarchy plugin; caches theme thumbnails)"
+# Card thumbnails are small preview images; this is a generous cap against a
+# broken or hostile response filling the disk during Refresh.
+MAX_IMAGE_BYTES=10000000
 
 [[ -f $CATALOG ]] || { echo "catalog.json not found — run scrape-catalog.sh first" >&2; exit 1; }
 
@@ -31,7 +34,7 @@ jq -r '.themes[] | select(.thumb) | "\(.slug)\t\(.thumb)"' "$CATALOG" | while IF
   fi
 
   echo "[$count/$total] $slug" >&2
-  curl -s -A "$UA" --max-time 15 --retry 2 -o "$dest.part" "$url" && mv "$dest.part" "$dest" || {
+  curl -s -A "$UA" --max-time 15 --retry 2 --max-filesize "$MAX_IMAGE_BYTES" -o "$dest.part" "$url" && mv "$dest.part" "$dest" || {
     echo "  -> failed to fetch $url" >&2
     rm -f "$dest.part"
   }

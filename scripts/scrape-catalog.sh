@@ -10,6 +10,9 @@ set -euo pipefail
 
 BASE="https://omarchythemes.com"
 UA="omarchy-theme-gallery/0.1 (local Omarchy plugin; scrapes theme list for one-click install)"
+# Listing/detail pages are a few hundred KB at most; this is a generous cap
+# against a broken or hostile response ballooning a bash variable in memory.
+MAX_PAGE_BYTES=2000000
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$(dirname "$SCRIPT_DIR")"
 OUT_FILE="$PLUGIN_DIR/cache/catalog.json"
@@ -35,7 +38,7 @@ while (( $# > 0 )); do
 done
 
 fetch() {
-  curl -s -A "$UA" --max-time 15 --retry 2 --retry-delay 1 "$1"
+  curl -s -A "$UA" --max-time 15 --retry 2 --retry-delay 1 --max-filesize "$MAX_PAGE_BYTES" "$1"
 }
 
 # Extracts one field via a sed pattern; prints empty string (not an error) on no match.
