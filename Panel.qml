@@ -42,6 +42,13 @@ Item {
   property string sortMode: "name-asc"
   property int selectedIndex: 0
 
+  // Fixed rather than Color.accent: accent already marks the "Current"
+  // (active desktop) theme, so reusing it here would make two different
+  // meanings look identical whenever they land on different cards. A
+  // dedicated selection blue matches the "selected item" convention most
+  // UIs already use, regardless of the active Omarchy theme's palette.
+  readonly property color kbSelectColor: "#4da6ff"
+
   readonly property var sortOptions: [
     { value: "name-asc", label: "Name (A-Z)" },
     { value: "name-desc", label: "Name (Z-A)" }
@@ -485,12 +492,14 @@ Item {
                 anchors.margins: Style.spacing.sm
                 radius: Style.cornerRadius
                 color: root.isCurrent(delegateRoot.modelData) ? Style.selectedFillFor(Color.foreground, Color.accent)
-                  : delegateRoot.kbFocused ? Style.hoverFillFor(Color.foreground, Color.accent)
+                  : delegateRoot.kbFocused ? Qt.rgba(root.kbSelectColor.r, root.kbSelectColor.g, root.kbSelectColor.b, 0.18)
                   : Style.normalFill
                 border.color: root.isCurrent(delegateRoot.modelData) ? Color.accent
-                  : delegateRoot.kbFocused ? Style.hoverBorderColor
+                  : delegateRoot.kbFocused ? root.kbSelectColor
                   : Style.normalBorderColor
-                border.width: (root.isCurrent(delegateRoot.modelData) || delegateRoot.kbFocused) ? Math.max(2, Style.normalBorderWidth) : Style.normalBorderWidth
+                border.width: root.isCurrent(delegateRoot.modelData) ? Math.max(2, Style.normalBorderWidth)
+                  : delegateRoot.kbFocused ? Math.max(3, Style.normalBorderWidth + 1)
+                  : Style.normalBorderWidth
 
                 ColumnLayout {
                   anchors.fill: parent
