@@ -1,9 +1,10 @@
 {
   "schemaVersion": 1,
-  "id": "lory.theme-gallery",
+  "id": "io.github.nerkyator.theme-gallery",
   "name": "Theme Gallery",
   "version": "0.1.0",
-  "author": "lory",
+  "author": "Nerkyator",
+  "license": "MIT",
   "description": "Browse community Omarchy themes from omarchythemes.com and install one with a click",
   "kinds": [
     "panel"

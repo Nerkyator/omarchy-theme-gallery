@@ -10,14 +10,21 @@ import qs.Ui
 // omarchythemes.com (see scripts/scrape-catalog.sh) and installs the
 // selected theme via `omarchy theme install` / `omarchy theme set`.
 //
-// Summon with: omarchy-shell shell summon lory.theme-gallery '{}'
+// Summon with: omarchy-shell shell summon io.github.nerkyator.theme-gallery '{}'
 Item {
   id: root
 
-  readonly property string pluginDir: Quickshell.env("HOME") + "/.config/omarchy/plugins/lory.theme-gallery"
-
   property var shell: null
   property var manifest: null
+
+  // Installed third-party plugins always land at
+  // ~/.config/omarchy/plugins/<manifest id> (that's what `omarchy plugin add`
+  // names the clone after), so this must not be a literal path: every other
+  // user's manifest id is not "lory.theme-gallery". Falls back to this dev
+  // copy's own folder name only for the sliver of time before the host
+  // injects `manifest` (see shell.qml's Loader.onLoaded).
+  readonly property string pluginId: (root.manifest && root.manifest.id) || "io.github.nerkyator.theme-gallery"
+  readonly property string pluginDir: Quickshell.env("HOME") + "/.config/omarchy/plugins/" + root.pluginId
 
   property bool opened: false
   property var themes: []
@@ -96,7 +103,7 @@ Item {
 
   function dismiss() {
     if (root.shell && typeof root.shell.hide === "function")
-      root.shell.hide((root.manifest && root.manifest.id) || "lory.theme-gallery")
+      root.shell.hide(root.pluginId)
     else close()
   }
 
@@ -241,7 +248,7 @@ Item {
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "lory-theme-gallery"
+    WlrLayershell.namespace: "omarchy-theme-gallery"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: root.opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 

@@ -26,19 +26,31 @@ Refresh.
 ## Install
 
 ```sh
-omarchy plugin add <this-repo-url> --enable
+omarchy plugin add https://github.com/Nerkyator/omarchy-theme-gallery.git --enable
 ```
 
 Then open it from the Omarchy menu — **Style → Theme Gallery** — or run:
 
 ```sh
-omarchy-shell shell summon lory.theme-gallery '{}'
+omarchy-shell shell summon io.github.nerkyator.theme-gallery '{}'
 ```
 
 On first run the gallery is empty; click **Refresh** to fetch the catalog
 (a few minutes — it's a polite, rate-limited crawl of ~290 theme pages).
 After that it's instant, reading from `cache/catalog.json` and cached
 thumbnails in `cache/thumbs/`.
+
+## Remove
+
+```sh
+omarchy plugin remove io.github.nerkyator.theme-gallery
+```
+
+This deletes the plugin's own folder (including its local
+`cache/catalog.json` and cached thumbnails). It never touches any theme
+you installed through it — those live under `~/.config/omarchy/themes/`
+like any other theme and are removed with `omarchy theme remove <name>`,
+independently, if you want them gone too.
 
 ## How it's built
 
