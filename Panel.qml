@@ -40,6 +40,7 @@ Item {
   property var detailTheme: null
   property string currentThemeSlug: ""
   property string sortMode: "name-asc"
+  property int selectedIndex: 0
 
   readonly property var sortOptions: [
     { value: "name-asc", label: "Name (A-Z)" },
@@ -67,11 +68,19 @@ Item {
     return list
   }
 
+  // Keeps the keyboard cursor valid (and scrolled into view) whenever the
+  // list it indexes into changes shape — filtering, sorting, or a refresh.
+  onFilteredThemesChanged: {
+    root.selectedIndex = Math.min(root.selectedIndex, Math.max(0, root.filteredThemes.length - 1))
+    if (grid) grid.positionViewAtIndex(root.selectedIndex, GridView.Contain)
+  }
+  onSelectedIndexChanged: if (grid) grid.positionViewAtIndex(root.selectedIndex, GridView.Contain)
+
   function open(payloadJson) {
     root.opened = true
     root.refreshInstalledSlugs()
     Qt.callLater(function() {
-      if (root.opened) searchField.forceActiveFocus()
+      if (root.opened) keyCatcherItem.forceActiveFocus()
     })
   }
 
@@ -259,9 +268,36 @@ Item {
     }
 
     Item {
+      id: keyCatcherItem
       anchors.fill: parent
       focus: true
       Keys.onEscapePressed: root.detailTheme !== null ? root.closeDetail() : root.dismiss()
+      Keys.onPressed: function(event) {
+        if (root.detailTheme !== null) return
+        var count = root.filteredThemes.length
+        if (count === 0) return
+        if (event.key === Qt.Key_Right) {
+          root.selectedIndex = Math.min(count - 1, root.selectedIndex + 1)
+          event.accepted = true
+        } else if (event.key === Qt.Key_Left) {
+          root.selectedIndex = Math.max(0, root.selectedIndex - 1)
+          event.accepted = true
+        } else if (event.key === Qt.Key_Down) {
+          root.selectedIndex = Math.min(count - 1, root.selectedIndex + root.gridColumns)
+          event.accepted = true
+        } else if (event.key === Qt.Key_Up) {
+          root.selectedIndex = Math.max(0, root.selectedIndex - root.gridColumns)
+          event.accepted = true
+        } else if (event.key === Qt.Key_Space) {
+          var toShow = root.filteredThemes[root.selectedIndex]
+          if (toShow) root.openDetail(toShow)
+          event.accepted = true
+        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+          var toInstall = root.filteredThemes[root.selectedIndex]
+          if (toInstall && !root.isCurrent(toInstall)) root.installTheme(toInstall)
+          event.accepted = true
+        }
+      }
 
       Rectangle {
         id: card
@@ -290,6 +326,7 @@ Item {
               placeholderText: "Filter by name or author…"
               text: root.filterText
               onTextChanged: root.filterText = text
+              Keys.onDownPressed: keyCatcherItem.forceActiveFocus()
             }
 
             Dropdown {
@@ -438,6 +475,8 @@ Item {
               delegate: Item {
               id: delegateRoot
               required property var modelData
+              required property int index
+              readonly property bool kbFocused: delegateRoot.index === root.selectedIndex
               width: grid.cellWidth
               height: grid.cellHeight
 
@@ -445,9 +484,13 @@ Item {
                 anchors.fill: parent
                 anchors.margins: Style.spacing.sm
                 radius: Style.cornerRadius
-                color: Style.normalFill
-                border.color: root.isCurrent(delegateRoot.modelData) ? Color.accent : Style.normalBorderColor
-                border.width: root.isCurrent(delegateRoot.modelData) ? Math.max(2, Style.normalBorderWidth) : Style.normalBorderWidth
+                color: root.isCurrent(delegateRoot.modelData) ? Style.selectedFillFor(Color.foreground, Color.accent)
+                  : delegateRoot.kbFocused ? Style.hoverFillFor(Color.foreground, Color.accent)
+                  : Style.normalFill
+                border.color: root.isCurrent(delegateRoot.modelData) ? Color.accent
+                  : delegateRoot.kbFocused ? Style.hoverBorderColor
+                  : Style.normalBorderColor
+                border.width: (root.isCurrent(delegateRoot.modelData) || delegateRoot.kbFocused) ? Math.max(2, Style.normalBorderWidth) : Style.normalBorderWidth
 
                 ColumnLayout {
                   anchors.fill: parent
@@ -469,7 +512,10 @@ Item {
                     MouseArea {
                       anchors.fill: parent
                       cursorShape: Qt.PointingHandCursor
-                      onClicked: root.openDetail(delegateRoot.modelData)
+                      onClicked: {
+                        root.selectedIndex = delegateRoot.index
+                        root.openDetail(delegateRoot.modelData)
+                      }
                     }
                   }
 
@@ -511,6 +557,7 @@ Item {
                     iconText: root.installingSlug === delegateRoot.modelData.slug ? "⟳" : ""
                     iconSpinning: root.installingSlug === delegateRoot.modelData.slug
                     onClicked: {
+                      root.selectedIndex = delegateRoot.index
                       if (root.isCurrent(delegateRoot.modelData)) return
                       root.installTheme(delegateRoot.modelData)
                     }
