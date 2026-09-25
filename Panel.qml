@@ -31,6 +31,7 @@ Item {
   property int refreshTotal: 0
   property var installedSlugs: []
   property var detailTheme: null
+  property string currentThemeSlug: ""
 
   readonly property int gridColumns: 4
   readonly property int gridCellWidth: Style.space(200)
@@ -38,6 +39,7 @@ Item {
 
   readonly property string userThemesDir: Quickshell.env("HOME") + "/.config/omarchy/themes"
   readonly property string stockThemesDir: Quickshell.env("OMARCHY_PATH") + "/themes"
+  readonly property string currentThemeStatePath: Quickshell.env("HOME") + "/.local/state/omarchy/current/theme.name"
 
   readonly property var filteredThemes: {
     var q = filterText.trim().toLowerCase()
@@ -71,6 +73,10 @@ Item {
 
   function isInstalled(theme) {
     return theme && root.installedSlugs.indexOf(String(theme.slug).toLowerCase()) !== -1
+  }
+
+  function isCurrent(theme) {
+    return theme && root.currentThemeSlug !== "" && String(theme.slug).toLowerCase() === root.currentThemeSlug
   }
 
   function refreshInstalledSlugs() {
@@ -137,6 +143,18 @@ Item {
       root.statusText = "No catalog yet — run scripts/scrape-catalog.sh"
       root.statusError = true
     }
+  }
+
+  // Tracks the live active theme so a card can show "Current" instead of
+  // Install/Apply. watchChanges means switching themes any other way (the
+  // built-in switcher, `omarchy theme set` in a terminal) updates this too.
+  FileView {
+    id: currentThemeFile
+    path: root.currentThemeStatePath
+    watchChanges: true
+    printErrors: false
+    onLoaded: root.currentThemeSlug = text().trim().toLowerCase()
+    onLoadFailed: root.currentThemeSlug = ""
   }
 
   Process {
@@ -403,8 +421,8 @@ Item {
                 anchors.margins: Style.spacing.sm
                 radius: Style.cornerRadius
                 color: Style.normalFill
-                border.color: Style.normalBorderColor
-                border.width: Style.normalBorderWidth
+                border.color: root.isCurrent(delegateRoot.modelData) ? Color.accent : Style.normalBorderColor
+                border.width: root.isCurrent(delegateRoot.modelData) ? Math.max(2, Style.normalBorderWidth) : Style.normalBorderWidth
 
                 ColumnLayout {
                   anchors.fill: parent
@@ -458,13 +476,19 @@ Item {
                   Button {
                     Layout.fillWidth: true
                     bordered: true
-                    text: root.installingSlug === delegateRoot.modelData.slug ? "Installing…"
-                      : root.isInstalled(delegateRoot.modelData) ? "Ready"
+                    selected: root.isCurrent(delegateRoot.modelData)
+                    text: root.installingSlug === delegateRoot.modelData.slug
+                      ? (root.isInstalled(delegateRoot.modelData) ? "Applying…" : "Installing…")
+                      : root.isCurrent(delegateRoot.modelData) ? "Current"
+                      : root.isInstalled(delegateRoot.modelData) ? "Apply"
                       : delegateRoot.modelData.repo ? "Install"
                       : "Apply"
                     iconText: root.installingSlug === delegateRoot.modelData.slug ? "⟳" : ""
                     iconSpinning: root.installingSlug === delegateRoot.modelData.slug
-                    onClicked: root.installTheme(delegateRoot.modelData)
+                    onClicked: {
+                      if (root.isCurrent(delegateRoot.modelData)) return
+                      root.installTheme(delegateRoot.modelData)
+                    }
                   }
                 }
               }
@@ -496,12 +520,12 @@ Item {
         Rectangle {
           id: detailCard
           anchors.centerIn: parent
-          width: Math.min(parent.width - Style.space(80), Style.space(560))
+          width: Math.min(parent.width - Style.space(80), Style.space(760))
           height: Math.min(parent.height - Style.space(80), detailContent.implicitHeight + Style.spacing.panelPadding * 2)
           radius: Style.cornerRadius
           color: Color.background
-          border.color: Style.normalBorderColor
-          border.width: Style.normalBorderWidth
+          border.color: root.isCurrent(root.detailTheme) ? Color.accent : Style.normalBorderColor
+          border.width: root.isCurrent(root.detailTheme) ? Math.max(2, Style.normalBorderWidth) : Style.normalBorderWidth
 
           MouseArea { anchors.fill: parent; onClicked: {} }
 
@@ -513,7 +537,7 @@ Item {
 
             Image {
               Layout.fillWidth: true
-              Layout.preferredHeight: Style.space(280)
+              Layout.preferredHeight: Style.space(380)
               fillMode: Image.PreserveAspectFit
               asynchronous: true
               source: root.detailTheme ? ("file://" + root.pluginDir + "/cache/thumbs/" + root.detailTheme.slug + ".jpg") : ""
@@ -601,13 +625,19 @@ Item {
               Layout.fillWidth: true
               bordered: true
               visible: root.detailTheme !== null
-              text: root.detailTheme && root.installingSlug === root.detailTheme.slug ? "Installing…"
-                : root.detailTheme && root.isInstalled(root.detailTheme) ? "Ready"
+              selected: root.isCurrent(root.detailTheme)
+              text: root.detailTheme && root.installingSlug === root.detailTheme.slug
+                ? (root.isInstalled(root.detailTheme) ? "Applying…" : "Installing…")
+                : root.isCurrent(root.detailTheme) ? "Current"
+                : root.detailTheme && root.isInstalled(root.detailTheme) ? "Apply"
                 : root.detailTheme && root.detailTheme.repo ? "Install"
                 : "Apply"
               iconText: root.detailTheme && root.installingSlug === root.detailTheme.slug ? "⟳" : ""
               iconSpinning: root.detailTheme && root.installingSlug === root.detailTheme.slug
-              onClicked: root.installTheme(root.detailTheme)
+              onClicked: {
+                if (root.isCurrent(root.detailTheme)) return
+                root.installTheme(root.detailTheme)
+              }
             }
           }
         }
