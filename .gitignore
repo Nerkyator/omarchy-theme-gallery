@@ -1,2 +1,3 @@
-# Generated locally by scripts/refresh.sh — regenerated per install, never shipped.
-/cache/
+# scripts/refresh.sh writes its catalog/thumbnails to $XDG_CACHE_HOME
+# (~/.cache/omarchy-theme-gallery/), outside this repo entirely — see
+# README's "How it's built" for why. Nothing generated lands in here.

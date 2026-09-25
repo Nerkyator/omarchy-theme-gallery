@@ -14,8 +14,12 @@ UA="omarchy-theme-gallery/0.1 (local Omarchy plugin; scrapes theme list for one-
 # against a broken or hostile response ballooning a bash variable in memory.
 MAX_PAGE_BYTES=2000000
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PLUGIN_DIR="$(dirname "$SCRIPT_DIR")"
-OUT_FILE="$PLUGIN_DIR/cache/catalog.json"
+# Not under the plugin dir: Omarchy watches every plugin's own directory
+# recursively to hot-reload on code changes, so writing the catalog/
+# thumbnails there gets misread as a code change and force-closes this
+# panel mid-refresh. XDG_CACHE_HOME is outside that watch.
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/omarchy-theme-gallery"
+OUT_FILE="$CACHE_DIR/catalog.json"
 DELAY="0.4"
 LIMIT=""
 ONLY_SLUG=""

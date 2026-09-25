@@ -26,6 +26,13 @@ Item {
   readonly property string pluginId: (root.manifest && root.manifest.id) || "io.github.nerkyator.theme-gallery"
   readonly property string pluginDir: Quickshell.env("HOME") + "/.config/omarchy/plugins/" + root.pluginId
 
+  // Deliberately NOT under pluginDir: the shell watches every plugin's
+  // directory recursively (inotifywait -r) to hot-reload on code changes,
+  // so writing hundreds of thumbnails and a catalog.json under pluginDir
+  // during Refresh was mistaken for a code change and force-closed this
+  // panel mid-refresh. XDG_CACHE_HOME is outside that watch entirely.
+  readonly property string cacheDir: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/omarchy-theme-gallery"
+
   property bool opened: false
   property var themes: []
   property string filterText: ""
@@ -167,7 +174,7 @@ Item {
 
   FileView {
     id: catalogFile
-    path: root.pluginDir + "/cache/catalog.json"
+    path: root.cacheDir + "/catalog.json"
     watchChanges: true
     printErrors: false
     onLoaded: root.loadCatalog(text())
@@ -512,7 +519,7 @@ Item {
                     Layout.preferredHeight: Style.space(110)
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
-                    source: "file://" + root.pluginDir + "/cache/thumbs/" + delegateRoot.modelData.slug + ".jpg"
+                    source: "file://" + root.cacheDir + "/thumbs/" + delegateRoot.modelData.slug + ".jpg"
                     onStatusChanged: {
                       if (status === Image.Error && delegateRoot.modelData.thumb)
                         source = delegateRoot.modelData.thumb
@@ -621,7 +628,7 @@ Item {
               Layout.preferredHeight: Style.space(380)
               fillMode: Image.PreserveAspectFit
               asynchronous: true
-              source: root.detailTheme ? ("file://" + root.pluginDir + "/cache/thumbs/" + root.detailTheme.slug + ".jpg") : ""
+              source: root.detailTheme ? ("file://" + root.cacheDir + "/thumbs/" + root.detailTheme.slug + ".jpg") : ""
               onStatusChanged: {
                 if (status === Image.Error && root.detailTheme && root.detailTheme.thumb)
                   source = root.detailTheme.thumb
