@@ -29,10 +29,15 @@ Item {
   property string refreshProgress: ""
   property int refreshCurrent: 0
   property int refreshTotal: 0
+  property var installedSlugs: []
+  property var detailTheme: null
 
   readonly property int gridColumns: 4
   readonly property int gridCellWidth: Style.space(200)
   readonly property int gridCellHeight: Style.space(210)
+
+  readonly property string userThemesDir: Quickshell.env("HOME") + "/.config/omarchy/themes"
+  readonly property string stockThemesDir: Quickshell.env("OMARCHY_PATH") + "/themes"
 
   readonly property var filteredThemes: {
     var q = filterText.trim().toLowerCase()
@@ -45,6 +50,7 @@ Item {
 
   function open(payloadJson) {
     root.opened = true
+    root.refreshInstalledSlugs()
     Qt.callLater(function() {
       if (root.opened) searchField.forceActiveFocus()
     })
@@ -52,6 +58,24 @@ Item {
 
   function close() {
     root.opened = false
+    root.detailTheme = null
+  }
+
+  function openDetail(theme) {
+    root.detailTheme = theme
+  }
+
+  function closeDetail() {
+    root.detailTheme = null
+  }
+
+  function isInstalled(theme) {
+    return theme && root.installedSlugs.indexOf(String(theme.slug).toLowerCase()) !== -1
+  }
+
+  function refreshInstalledSlugs() {
+    installedListProc.running = false
+    installedListProc.running = true
   }
 
   function dismiss() {
@@ -79,11 +103,12 @@ Item {
 
   function installTheme(theme) {
     if (root.installingSlug !== "") return
+    var alreadyInstalled = root.isInstalled(theme)
     root.installingSlug = theme.slug
     root.statusError = false
-    root.statusText = "Installing " + theme.name + "…"
+    root.statusText = (alreadyInstalled ? "Applying " : "Installing ") + theme.name + "…"
     installProc.errorText = ""
-    installProc.command = theme.repo
+    installProc.command = (theme.repo && !alreadyInstalled)
       ? ["omarchy", "theme", "install", theme.repo]
       : ["omarchy", "theme", "set", theme.slug]
     installProc.running = true
@@ -127,12 +152,27 @@ Item {
       var label = theme ? theme.name : "Theme"
       if (exitCode === 0) {
         root.statusError = false
-        root.statusText = label + " installed and applied"
+        root.statusText = label + " applied"
+        root.refreshInstalledSlugs()
       } else {
         root.statusError = true
         root.statusText = "Install failed: " + (installProc.errorText || "unknown error")
       }
       root.installingSlug = ""
+    }
+  }
+
+  Process {
+    id: installedListProc
+    command: ["bash", "-c", 'ls -1 "$1" 2>/dev/null; ls -1 "$2" 2>/dev/null',
+      "bash", root.userThemesDir, root.stockThemesDir]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        root.installedSlugs = String(text || "").split("\n")
+          .map(function(s) { return s.trim().toLowerCase() })
+          .filter(function(s) { return s.length > 0 })
+      }
     }
   }
 
@@ -186,7 +226,7 @@ Item {
     Item {
       anchors.fill: parent
       focus: true
-      Keys.onEscapePressed: root.dismiss()
+      Keys.onEscapePressed: root.detailTheme !== null ? root.closeDetail() : root.dismiss()
 
       Rectangle {
         id: card
@@ -382,6 +422,12 @@ Item {
                       if (status === Image.Error && delegateRoot.modelData.thumb)
                         source = delegateRoot.modelData.thumb
                     }
+
+                    MouseArea {
+                      anchors.fill: parent
+                      cursorShape: Qt.PointingHandCursor
+                      onClicked: root.openDetail(delegateRoot.modelData)
+                    }
                   }
 
                   Text {
@@ -413,6 +459,7 @@ Item {
                     Layout.fillWidth: true
                     bordered: true
                     text: root.installingSlug === delegateRoot.modelData.slug ? "Installing…"
+                      : root.isInstalled(delegateRoot.modelData) ? "Ready"
                       : delegateRoot.modelData.repo ? "Install"
                       : "Apply"
                     iconText: root.installingSlug === delegateRoot.modelData.slug ? "⟳" : ""
@@ -436,6 +483,135 @@ Item {
           }
       }
     }
+
+      Rectangle {
+        id: detailOverlay
+        anchors.fill: parent
+        visible: root.detailTheme !== null
+        color: Qt.rgba(0, 0, 0, 0.75)
+        z: 10
+
+        MouseArea { anchors.fill: parent; onClicked: root.closeDetail() }
+
+        Rectangle {
+          id: detailCard
+          anchors.centerIn: parent
+          width: Math.min(parent.width - Style.space(80), Style.space(560))
+          height: Math.min(parent.height - Style.space(80), detailContent.implicitHeight + Style.spacing.panelPadding * 2)
+          radius: Style.cornerRadius
+          color: Color.background
+          border.color: Style.normalBorderColor
+          border.width: Style.normalBorderWidth
+
+          MouseArea { anchors.fill: parent; onClicked: {} }
+
+          ColumnLayout {
+            id: detailContent
+            anchors.fill: parent
+            anchors.margins: Style.spacing.panelPadding
+            spacing: Style.spacing.md
+
+            Image {
+              Layout.fillWidth: true
+              Layout.preferredHeight: Style.space(280)
+              fillMode: Image.PreserveAspectFit
+              asynchronous: true
+              source: root.detailTheme ? ("file://" + root.pluginDir + "/cache/thumbs/" + root.detailTheme.slug + ".jpg") : ""
+              onStatusChanged: {
+                if (status === Image.Error && root.detailTheme && root.detailTheme.thumb)
+                  source = root.detailTheme.thumb
+              }
+            }
+
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: Style.spacing.controlGap
+
+              Text {
+                textFormat: Text.PlainText
+                text: root.detailTheme ? root.detailTheme.name : ""
+                color: Color.foreground
+                font.family: Style.font.family
+                font.pixelSize: Style.font.heading
+                font.bold: true
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+              }
+
+              Button {
+                text: "Close"
+                bordered: true
+                onClicked: root.closeDetail()
+              }
+            }
+
+            Text {
+              textFormat: Text.PlainText
+              text: (root.detailTheme && root.detailTheme.author ? "by " + root.detailTheme.author : "")
+                + (root.detailTheme && root.detailTheme.kind === "official" ? "  ·  official" : "")
+              color: Color.foreground
+              opacity: 0.65
+              font.family: Style.font.family
+              font.pixelSize: Style.font.bodySmall
+              Layout.fillWidth: true
+            }
+
+            Text {
+              textFormat: Text.PlainText
+              visible: root.detailTheme && root.detailTheme.apps && root.detailTheme.apps.length > 0
+              text: root.detailTheme && root.detailTheme.apps ? "Themed apps: " + root.detailTheme.apps.join(", ") : ""
+              color: Color.foreground
+              opacity: 0.55
+              font.family: Style.font.family
+              font.pixelSize: Style.font.bodySmall
+              wrapMode: Text.Wrap
+              Layout.fillWidth: true
+            }
+
+            Text {
+              textFormat: Text.PlainText
+              visible: root.detailTheme && root.detailTheme.repo
+              text: root.detailTheme ? root.detailTheme.repo : ""
+              color: Color.accent
+              font.family: Style.font.family
+              font.pixelSize: Style.font.bodySmall
+              font.underline: true
+              elide: Text.ElideMiddle
+              Layout.fillWidth: true
+
+              MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: Quickshell.execDetached(["omarchy-launch-browser", root.detailTheme.repo])
+              }
+            }
+
+            Text {
+              textFormat: Text.PlainText
+              visible: root.detailTheme && !root.detailTheme.repo
+              text: "Built into Omarchy — no external repo."
+              color: Color.foreground
+              opacity: 0.5
+              font.family: Style.font.family
+              font.pixelSize: Style.font.bodySmall
+              Layout.fillWidth: true
+            }
+
+            Button {
+              Layout.fillWidth: true
+              bordered: true
+              visible: root.detailTheme !== null
+              text: root.detailTheme && root.installingSlug === root.detailTheme.slug ? "Installing…"
+                : root.detailTheme && root.isInstalled(root.detailTheme) ? "Ready"
+                : root.detailTheme && root.detailTheme.repo ? "Install"
+                : "Apply"
+              iconText: root.detailTheme && root.installingSlug === root.detailTheme.slug ? "⟳" : ""
+              iconSpinning: root.detailTheme && root.installingSlug === root.detailTheme.slug
+              onClicked: root.installTheme(root.detailTheme)
+            }
+          }
+        }
+      }
   }
 }
 }
